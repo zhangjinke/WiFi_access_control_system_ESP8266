@@ -19,10 +19,14 @@
 
 #define HSPI_SEND  0
 #define HSPI_RECV  1
-#define HSPI_QUEUE_LEN 8
-#define HSPI_TASK_PRIO USER_TASK_PRIO_1
 
-extern os_event_t hspiQueue[HSPI_QUEUE_LEN];
+#define HSPI_SEND_QUEUE_LEN 8
+#define HSPI_SEND_TASK_PRIO USER_TASK_PRIO_2
+extern os_event_t hspi_send_Queue[HSPI_SEND_QUEUE_LEN];
+
+#define HSPI_RECV_QUEUE_LEN 8
+#define HSPI_RECV_TASK_PRIO USER_TASK_PRIO_1
+extern os_event_t hspi_recv_Queue[HSPI_RECV_QUEUE_LEN];
 
 extern void ICACHE_FLASH_ATTR hspi_slave_init();
 extern void ICACHE_FLASH_ATTR hspi_task(os_event_t *e);

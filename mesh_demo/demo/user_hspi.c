@@ -115,6 +115,9 @@ s8 spi_send_data(uint8 *pack, uint32 lenth)
 	return 0;
 }
 
+u8 is_recv_pack = 0;
+u32 recv_lenth = 0;
+
 /*******************************************************************************
 * 函数名 	: spi_slave_isr_sta
 * 描述   	: SPI中断服务程序回调函数
@@ -128,9 +131,9 @@ void spi_slave_isr_sta(void *para)
 	static uint32 i                   = 0; /* 循环变量 */
 	/* SPI接收部分变量 */
 	static uint32 recv_data 		  = 0; /* 保存SPI接收寄存器的值 */
-	static uint8  recv_buf[32]		= {0}; /* 接收缓冲区 */
-	static uint32 recv_pack_counter   = 0; /* 接收数据包计数器 */
-	static uint8  recv_state		  = 0; /* 接收状态 0:等待接收包头 1:正在接收数据包 2:接收完成,等待复位 */
+	static uint8 buf[32]            = {0}; /* 接收缓冲区 */
+	static uint8 isReceive = 0;
+	static uint32 pack_counter = 0;        /* 接收数据包计数器 */
 	
 	/* SPI中断 */
 	if (READ_PERI_REG(0x3ff00020)&BIT4)
@@ -163,48 +166,51 @@ void spi_slave_isr_sta(void *para)
 			for (i = 0; i < 8; i++)
 			{
 				recv_data=READ_PERI_REG(SPI_W0(SpiNum_HSPI)+(i<<2));
-				recv_buf[(i<<2)+0] = (recv_data>>0)&0xff;
-				recv_buf[(i<<2)+1] = (recv_data>>8)&0xff;
-				recv_buf[(i<<2)+2] = (recv_data>>16)&0xff;
-				recv_buf[(i<<2)+3] = (recv_data>>24)&0xff;
+				buf[(i<<2)+0] = (recv_data>>0)&0xff;
+				buf[(i<<2)+1] = (recv_data>>8)&0xff;
+				buf[(i<<2)+2] = (recv_data>>16)&0xff;
+				buf[(i<<2)+3] = (recv_data>>24)&0xff;
 			}
-			/* 搜索包头，只有接收到包头之后才开始接收接下来的数据 */
-			if (recv_state == 0)
+
+			if (is_recv_pack == 0)
 			{
-				if (( recv_buf[0] & start_bit) == start_bit)
+				/* 搜索首包 */
+				if (( buf[0] & start_bit) == start_bit)
 				{
-					recv_state = 1;
-					recv_pack_counter = 0;
-					recv_pack_lenth = 0;
+					i = 0;
+					is_recv_pack = 0;
+					isReceive = 1;
+					pack_counter = 0;
+					recv_lenth = 0;
 				}
-			}
-			/* 接收余下的数据包 */
-			if (recv_state == 1)
-			{
-				recv_pack_lenth += recv_buf[0] & 0x3f;                         /* 将本包字节数计入计数器 */
-				if (( recv_buf[0] & end_bit) == end_bit)                       /* 判断是否接收到尾包 */
+				/* 搜索到首包之后开始接收数据 */
+				if (isReceive)
 				{
-					for (i = 0; i < (recv_buf[0] & 0x3f); i++)
+					recv_lenth += buf[0] & 0x3f;					/* 记录接收到的字节数 */
+					if (( buf[0] & end_bit) == end_bit) 			/* 判断是否收到末包 */
 					{
-						recv_pack[recv_pack_counter*31 + i] = recv_buf[i + 1]; /* 保存接收到的数据 */
+						for (i = 0; i < (buf[0] & 0x3f); i++)
+						{
+							recv_pack[pack_counter*31 + i] = buf[i + 1];
+						}
+						isReceive = 0;
+						is_recv_pack = 1;							/* 收到末包之后停止接收数据并置位接收完成标志 */
 					}
-					recv_state = 2;                                            /* 接收完成,关闭接收器 */
-				}
-				else
-				{
-					for (i = 0; i < 31; i++)
+					else
 					{
-						recv_pack[recv_pack_counter*31 + i] = recv_buf[i + 1]; /* 保存接收到的数据 */
+						for (i = 0; i < 31; i++)
+						{
+							recv_pack[pack_counter*31 + i] = buf[i + 1];
+						}
+						pack_counter++; 							/* 记录接收到的包数 */
 					}
-					recv_pack_counter++;
+				}	
+				/* 接收完成 */
+				if (is_recv_pack == 1)
+				{
+					os_printf("%d\r\n",recv_lenth);
+					system_os_post(HSPI_SEND_TASK_PRIO,0,0);
 				}
-			}
-			/* 接收完成,需要将receive_state置为0才重新开始接收数据 */
-			if (recv_state == 2)
-			{
-			    recv_state = 0;                                                /* 重新开始接收数据 */
-				os_printf("%d\r\n",recv_pack_lenth);
-				system_os_post(HSPI_TASK_PRIO,0,0);
 			}
 			
 			GPIO_OUTPUT_SET(4, 1); /* GPIO4置1 */
@@ -269,13 +275,13 @@ void ICACHE_FLASH_ATTR hspi_slave_init()
 os_event_t hspiQueue[HSPI_QUEUE_LEN];
 
 /*******************************************************************************
-* 函数名 	: hspi_task
-* 描述   	: hspi任务
+* 函数名 	: hspi_send_task
+* 描述   	: hspi发送任务
 * 输入     	: - e: 事件
 * 输出     	: None
 * 返回值    : None
 *******************************************************************************/
-void ICACHE_FLASH_ATTR hspi_task(os_event_t *e)
+void ICACHE_FLASH_ATTR hspi_send_task(os_event_t *e)
 {
     switch(e->sig)
 	{
@@ -283,9 +289,24 @@ void ICACHE_FLASH_ATTR hspi_task(os_event_t *e)
 		{
 			spi_send_data(recv_pack,recv_pack_lenth);
 		} break;
+        default: break;
+    }
+}
+
+/*******************************************************************************
+* 函数名 	: hspi_recv_task
+* 描述   	: hspi接收任务
+* 输入     	: - e: 事件
+* 输出     	: None
+* 返回值    : None
+*******************************************************************************/
+void ICACHE_FLASH_ATTR hspi_recv_task(os_event_t *e)
+{
+    switch(e->sig)
+	{
 	    case HSPI_RECV:
 		{
-
+			
 		} break;
         default: break;
     }
