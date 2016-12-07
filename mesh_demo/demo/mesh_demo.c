@@ -419,21 +419,29 @@ void user_init(void)
 
 	MESH_DEMO_PRINT("\r\n=====user init=====\r\n");
 	
-    system_os_task(hspi_send_task,HSPI_SEND_TASK_PRIO,hspi_send_Queue,HSPI_SEND_QUEUE_LEN);
-    system_os_task(hspi_recv_task,HSPI_RECV_TASK_PRIO,hspi_recv_Queue,HSPI_RECV_QUEUE_LEN);
+    if (!system_os_task(hspi_send_task,HSPI_SEND_TASK_PRIO,hspi_send_Queue,HSPI_SEND_QUEUE_LEN))
+    {
+		MESH_DEMO_PRINT("task hspi send failed\r\n");
+	}
+    if (!system_os_task(hspi_recv_task,HSPI_RECV_TASK_PRIO,hspi_recv_Queue,HSPI_RECV_QUEUE_LEN))
+	{
+		MESH_DEMO_PRINT("task hspi recv failed\r\n");
+	}
+
 	hspi_slave_init();
 
-    if (!router_init()) {
-        return;
+    //if (!router_init()) 
+	{
+    //    return;
     }
 
 
-    if (!esp_mesh_demo_init())
-        return;
+    //if (!esp_mesh_demo_init())
+    //    return;
 	
     /*
      * enable mesh
      * after enable mesh, you should wait for the mesh_enable_cb to be triggered.
      */
-    espconn_mesh_enable(mesh_enable_cb, MESH_ONLINE);
+    //espconn_mesh_enable(mesh_enable_cb, MESH_ONLINE);
 }

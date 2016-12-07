@@ -25,7 +25,8 @@
 
 /* SPI接收部分变量 */
 static uint8  recv_pack[1024*5] = {0}; /* 接收缓冲区 */
-static uint32 recv_pack_lenth	  = 0; /* 接收到的数据包的长度 */
+static uint32 recv_lenth          = 0; /* 接收到的数据包的长度 */
+static uint8 is_recv_pack = 0;
 
 /* SPI发送完成标志位 */
 volatile static uint8  wr_rdy     = 1;
@@ -53,9 +54,11 @@ s8 spi_send_data(uint8 *pack, uint32 lenth)
 		num--;
 		last_byte = 31;
 	}
+//	os_printf("lenth: %d, num: %d, last_byte: %d\r\n", lenth, num, last_byte);
 	/* 检查参数合法性 */
 	if (pack == NULL)
 	{
+		os_printf("pack addr is NULL\r\n");
 		return -1;
 	}
 	
@@ -108,15 +111,13 @@ s8 spi_send_data(uint8 *pack, uint32 lenth)
 		}
 		/* 将buf中的数据填充到SPI的寄存器中 */
 		SPISlaveSendData(SpiNum_HSPI, (uint32_t *)send_buf, 8);
+//		os_printf("send %d pack\r\n", i);
 		GPIO_OUTPUT_SET(5, 1); /* GPIO5置1 */
 	}
-
-	GPIO_OUTPUT_SET(5, 0); /* GPIO5置0 */
+	
+//	os_printf("send success\r\n");
 	return 0;
 }
-
-u8 is_recv_pack = 0;
-u32 recv_lenth = 0;
 
 /*******************************************************************************
 * 函数名 	: spi_slave_isr_sta
@@ -209,7 +210,7 @@ void spi_slave_isr_sta(void *para)
 				if (is_recv_pack == 1)
 				{
 					os_printf("%d\r\n",recv_lenth);
-					system_os_post(HSPI_SEND_TASK_PRIO,0,0);
+					system_os_post(HSPI_RECV_TASK_PRIO,HSPI_RECV,0);
 				}
 			}
 			
@@ -272,7 +273,7 @@ void ICACHE_FLASH_ATTR hspi_slave_init()
 	GPIO_OUTPUT_SET(4, 1);	//GPIO4置1,表示从机准备好，主机可以发送数据到从机
 }
 
-os_event_t hspiQueue[HSPI_QUEUE_LEN];
+os_event_t hspi_recv_Queue[HSPI_RECV_QUEUE_LEN];
 
 /*******************************************************************************
 * 函数名 	: hspi_send_task
@@ -287,11 +288,16 @@ void ICACHE_FLASH_ATTR hspi_send_task(os_event_t *e)
 	{
 	    case HSPI_SEND:
 		{
-			spi_send_data(recv_pack,recv_pack_lenth);
+//			spi_send_data(recv_pack,recv_lenth);
+//			is_recv_pack = 0;
 		} break;
         default: break;
     }
 }
+
+void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth);
+
+os_event_t hspi_send_Queue[HSPI_SEND_QUEUE_LEN];
 
 /*******************************************************************************
 * 函数名 	: hspi_recv_task
@@ -306,10 +312,96 @@ void ICACHE_FLASH_ATTR hspi_recv_task(os_event_t *e)
 	{
 	    case HSPI_RECV:
 		{
-			
+			hspi_data_process(recv_pack,recv_lenth);
+			is_recv_pack = 0;
 		} break;
         default: break;
     }
 }
 
+/* 获取结构体成员偏移宏定义 */
+#define OFFSET(Type, member) ( (uint32)&(((struct Type*)0)->member) )
+#define MEMBER_SIZE(Type, member) sizeof(((struct Type*)0)->member)
+
+struct wifi_pack wifi_pack_recv;
+
+/*******************************************************************************
+* 函数名 	: hspi_data_process
+* 描述   	: hspi数据处理
+* 输入     	: - pack: 接收到的数据 - lenth: 数据大小
+* 输出     	: None
+* 返回值    : None
+*******************************************************************************/
+void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth)
+{
+	static uint32 par_lenth = sizeof(struct wifi_pack) - MEMBER_SIZE(wifi_pack, data); /* 包中的参数大小 */
+	static uint32 crc_lenth = MEMBER_SIZE(wifi_pack, crc); /* CRC大小 */
+	static uint32 i = 0;
+
+	os_memcpy(&wifi_pack_recv, recv_pack, par_lenth);
+	/* 校验包长度 */
+	if (wifi_pack_recv.lenth + par_lenth != recv_lenth)
+	{
+		is_recv_pack = 0; /* 重新等待接收数据 */
+		os_printf("lenth verify failed\r\n");
+		return;
+	}
+	/* CRC校验 */
+	if (wifi_pack_recv.crc != CRC32Software(recv_pack + crc_lenth, par_lenth - crc_lenth + wifi_pack_recv.lenth))
+	{
+		is_recv_pack = 0; /* 重新等待接收数据 */
+		os_printf("crc verify failed %08X\r\n", wifi_pack_recv.crc);
+		return;
+	}
+	
+	wifi_pack_recv.data = recv_pack + par_lenth;
+	wifi_send(0x09, wifi_pack_recv.lenth, wifi_pack_recv.data);
+
+	os_printf("cmd: %d, lenth: %d, crc: %08X\r\n", wifi_pack_recv.cmd, wifi_pack_recv.lenth, wifi_pack_recv.crc);
+	
+	for (i = 0; i < wifi_pack_recv.lenth; i++)
+	{
+		os_printf("%02X ", *(wifi_pack_recv.data + i));
+	}
+		os_printf("\r\n");
+	
+	is_recv_pack = 0; /* 重新等待接收数据 */
+}
+
+
+s8 wifi_send(u8 cmd, u16 data_lenth, u8 *data)
+{
+	struct wifi_pack wifi_pack_send;
+	u8 *send_pack = NULL;
+	u32 par_lenth = sizeof(struct wifi_pack) - MEMBER_SIZE(wifi_pack, data); /* 包中的参数大小 */
+	u32 crc_lenth = MEMBER_SIZE(wifi_pack, crc); /* CRC大小 */
+	
+	/* 申请内存 */
+	send_pack = (u8 *)os_malloc(data_lenth + par_lenth);
+    if (!send_pack) 
+    { 
+        os_printf("send_pack memory failed\r\n");
+        return -1;
+    }
+
+	wifi_pack_send.cmd = cmd;                /* 命令 */
+	wifi_pack_send.lenth = data_lenth;       /* 数据长度 */
+	/* 将除CRC之外的其它参数拷贝到缓冲区 */
+	os_memcpy(send_pack + crc_lenth, (u8 *)&wifi_pack_send + crc_lenth, par_lenth - crc_lenth);
+	/* 将数据拷贝到缓冲区 */
+	os_memcpy(send_pack + par_lenth, data, data_lenth);
+	/* 计算CRC */
+	wifi_pack_send.crc = CRC32Software(send_pack + crc_lenth, par_lenth - crc_lenth + data_lenth);
+	/* 将CRC拷贝到缓冲区 */
+	os_memcpy(send_pack, &wifi_pack_send, crc_lenth);
+	/* 发送数据 */
+	if (spi_send_data(send_pack, par_lenth + data_lenth) != 0)
+	{
+		os_free(send_pack);
+		return -1;
+	}
+	
+	os_free(send_pack);
+	return 0;
+}
 

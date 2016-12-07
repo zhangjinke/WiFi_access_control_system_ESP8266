@@ -17,6 +17,16 @@
 
 #include "user_interface.h"
 
+#pragma pack(1)
+struct wifi_pack
+{
+	uint32  crc;				/* crc校验 */
+	uint8   cmd;				/* 命令 */
+	uint16  lenth;			    /* 数据长度 */
+	uint8  *data;				/* 数据 */
+};
+#pragma pack()
+
 #define HSPI_SEND  0
 #define HSPI_RECV  1
 
@@ -30,5 +40,9 @@ extern os_event_t hspi_recv_Queue[HSPI_RECV_QUEUE_LEN];
 
 extern void ICACHE_FLASH_ATTR hspi_slave_init();
 extern void ICACHE_FLASH_ATTR hspi_task(os_event_t *e);
+extern void ICACHE_FLASH_ATTR hspi_send_task(os_event_t *e);
+extern void ICACHE_FLASH_ATTR hspi_recv_task(os_event_t *e);
+
+extern s8 wifi_send(u8 cmd, u16 data_lenth, u8 *data);
 
 #endif
