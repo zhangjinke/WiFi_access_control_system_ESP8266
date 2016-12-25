@@ -178,9 +178,9 @@ void ICACHE_FLASH_ATTR mesh_enable_cb(int8_t res)
 TEST_SCENARIO:
     mesh_device_list_init();
     mesh_topo_test_init();
-//    mesh_json_mcast_test_init();
-//    mesh_json_bcast_test_init();
-//    mesh_json_p2p_test_init();
+    mesh_json_mcast_test_init();
+    mesh_json_bcast_test_init();
+    mesh_json_p2p_test_init();
 }
 
 void ICACHE_FLASH_ATTR esp_mesh_demo_test()
@@ -197,7 +197,7 @@ void ICACHE_FLASH_ATTR esp_mesh_demo_test()
      * the mesh data can be any content
      * it can be string(json/http), or binary(MQTT).
      */
-    char *tst_data = "123\r\n";
+    char *tst_data = "{\"req_key\":\"req_key_val\"}\r\n";
     // uint8_t tst_data[] = {'a', 'b', 'c', 'd'};}
     // uint8_t tst_data[] = {0x01, 0x02, 0x03, 0x04, 0x00};
 
@@ -215,7 +215,7 @@ void ICACHE_FLASH_ATTR esp_mesh_demo_test()
                             src,   // source address
                             false, // not p2p packet
                             true,  // piggyback congest request
-                            M_PROTO_BIN,  // packe with JSON format
+                            M_PROTO_JSON,  // packe with JSON format
                             MESH_DEMO_STRLEN(tst_data),  // data length
                             false, // no option
                             0,     // option len
@@ -264,7 +264,6 @@ bool ICACHE_FLASH_ATTR esp_mesh_demo_init()
 {
     // print version of mesh
     espconn_mesh_print_ver();
-    os_printf("SDK version:%s\n", system_get_sdk_version());
 
     /*
      * set the AP password of mesh node
@@ -333,13 +332,14 @@ static bool ICACHE_FLASH_ATTR router_init()
 {
     struct station_config config;
 
-/*    if (!espconn_mesh_is_root_candidate())
+/*
+    if (!espconn_mesh_is_root_candidate())
         goto INIT_SMARTCONFIG;
 
     MESH_DEMO_MEMSET(&config, 0, sizeof(config));
     espconn_mesh_get_router(&config);
     if (config.ssid[0] == 0xff ||
-        config.ssid[0] == 0x00) 
+        config.ssid[0] == 0x00)
 */
 	{
         /*
@@ -371,9 +371,9 @@ INIT_SMARTCONFIG:
     /*
      * use esp-touch(smart configure) to sent information about router AP to mesh node
      */
-//    esptouch_init();
+    esptouch_init();
 
-    MESH_DEMO_PRINT("\r\nflush ssid:%s pwd:%s\n", config.ssid, config.password);
+    MESH_DEMO_PRINT("flush ssid:%s pwd:%s\n", config.ssid, config.password);
 
     return true;
 }
@@ -416,7 +416,7 @@ void user_init(void)
      */
     uart_div_modify(0, UART_CLK_FREQ / UART_BAUD_RATIO);
     uart_div_modify(1, UART_CLK_FREQ / UART_BAUD_RATIO);
-
+	
 	MESH_DEMO_PRINT("\r\n=====user init=====\r\n");
 	
     if (!system_os_task(hspi_send_task,HSPI_SEND_TASK_PRIO,hspi_send_Queue,HSPI_SEND_QUEUE_LEN))
@@ -429,19 +429,31 @@ void user_init(void)
 	}
 
 	hspi_slave_init();
-
-    //if (!router_init()) 
-	{
-    //    return;
+	
+    if (!router_init()) {
+        return;
     }
 
 
-    //if (!esp_mesh_demo_init())
-    //    return;
-	
+    if (!esp_mesh_demo_init())
+        return;
+    
+//    user_devicefind_init();
     /*
      * enable mesh
      * after enable mesh, you should wait for the mesh_enable_cb to be triggered.
      */
-    //espconn_mesh_enable(mesh_enable_cb, MESH_ONLINE);
+    espconn_mesh_enable(mesh_enable_cb, MESH_ONLINE);
+
+    /*
+     * while system runs smartconfig (STA mode), mesh (STA + SoftAp mode) must not been enabled,
+     * So wait for esptouch to run over and then execute espconn_mesh_enable
+     */
+/*
+    os_timer_t *wait_timer = (os_timer_t *)os_zalloc(sizeof(os_timer_t));
+    if (NULL == wait_timer) return;
+    os_timer_disarm(wait_timer);
+    os_timer_setfn(wait_timer, (os_timer_func_t *)wait_esptouch_over, wait_timer);
+    os_timer_arm(wait_timer, 1000, true);
+*/
 }
