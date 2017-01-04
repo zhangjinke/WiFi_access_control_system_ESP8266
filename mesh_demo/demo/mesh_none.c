@@ -63,12 +63,15 @@ mesh_none_proto_parser(const void *mesh_header, uint8_t *pdata, uint16_t len)
 
 void ICACHE_FLASH_ATTR mesh_topo_test()
 {
+	uint32_t i;
     uint8_t src[6];
     uint8_t dst[6];
     struct mesh_header_format *header = NULL;
     struct mesh_header_option_format *option = NULL;
     uint8_t ot_len = sizeof(struct mesh_header_option_header_type) + sizeof(*option) + sizeof(dst); 
 
+	MESH_PARSER_PRINT("mesh_topo_test ot_len:%d, header:%d, *option:%d\r\n",ot_len,sizeof(struct mesh_header_option_header_type),sizeof(*option));
+	
     if (!wifi_get_macaddr(STATION_IF, src)) {
         MESH_PARSER_PRINT("get sta mac fail\n");
         return;
@@ -131,6 +134,13 @@ void ICACHE_FLASH_ATTR mesh_topo_test()
         MESH_PARSER_PRINT("set option fail\n");
         goto TOPO_FAIL;
     }
+	
+	MESH_PARSER_PRINT("header.len:%d\r\n",header->len);
+	for (i = 0; i < header->len; i++)
+	{
+		MESH_PARSER_PRINT("%02X, ", *((u8 *)header + i));
+	}
+	MESH_PARSER_PRINT("\r\n");
 
     if (espconn_mesh_sent(&g_ser_conn, (uint8_t *)header, header->len)) {
         MESH_PARSER_PRINT("topo mesh is busy\n");
