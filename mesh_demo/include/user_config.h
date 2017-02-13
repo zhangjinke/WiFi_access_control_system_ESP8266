@@ -12,16 +12,16 @@ static const uint16_t server_port = 2756;                  /*PORT USED BY USER I
 static const uint8_t server_ip[4] = {192, 168, 191, 1};   /*USER IOT SERVER IP ADDRESS*/
 static const uint32_t UART_BAUD_RATIO = 76800;             /*UART BAUD RATIO*/
 static const uint8_t MESH_GROUP_ID[6] = {0x18,0xfe,0x34,0x00,0x00,0x50};  /*MESH_GROUP_ID & MESH_SSID_PREFIX REPRESENTS ONE MESH NETWORK*/
-static const uint8_t MESH_ROUTER_BSSID[6] = {0xF0, 0xB4, 0x29, 0x2C, 0x7C, 0x72}; /*MAC OF ROUTER*/
+static const uint8_t MESH_ROUTER_BSSID[6] = {0x16, 0x27, 0x1e, 0x08, 0xf2, 0x46}; /*MAC OF ROUTER*/
 
 /*
  * please change MESH_ROUTER_SSID and MESH_ROUTER_PASSWD according to your router
  */
-#define MESH_ROUTER_SSID     "XDA_E3"      /*THE ROUTER SSID*/
+#define MESH_ROUTER_SSID     "XDA"      /*THE ROUTER SSID*/
 #define MESH_ROUTER_PASSWD   "zzzzzzzzx"    /*THE ROUTER PASSWORD*/
 #define MESH_SSID_PREFIX     "MESH_PEACE"    /*SET THE DEFAULT MESH SSID PREFIX;THE FINAL SSID OF SOFTAP WOULD BE "MESH_SSID_PREFIX_X_YYYYYY"*/
 #define MESH_AUTH            AUTH_WPA2_PSK  /*AUTH_MODE OF SOFTAP FOR EACH MESH NODE*/
-#define MESH_PASSWD          "zzzzzzzzx"    /*SET PASSWORD OF SOFTAP FOR EACH MESH NODE*/
+#define MESH_PASSWD          "zzzzzzzzy"    /*SET PASSWORD OF SOFTAP FOR EACH MESH NODE*/
 #define MESH_MAX_HOP         (4)            /*MAX_HOPS OF MESH NETWORK*/
 
 #endif

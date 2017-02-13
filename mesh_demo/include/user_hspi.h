@@ -38,6 +38,9 @@ extern os_event_t hspi_send_Queue[HSPI_SEND_QUEUE_LEN];
 #define HSPI_RECV_TASK_PRIO USER_TASK_PRIO_1
 extern os_event_t hspi_recv_Queue[HSPI_RECV_QUEUE_LEN];
 
+extern struct wifi_pack wifi_pack_recv;
+extern struct wifi_pack wifi_pack_send;
+
 extern void ICACHE_FLASH_ATTR hspi_slave_init();
 extern void ICACHE_FLASH_ATTR hspi_task(os_event_t *e);
 extern void ICACHE_FLASH_ATTR hspi_send_task(os_event_t *e);

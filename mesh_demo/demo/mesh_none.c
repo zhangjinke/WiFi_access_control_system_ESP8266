@@ -69,8 +69,6 @@ void ICACHE_FLASH_ATTR mesh_topo_test()
     struct mesh_header_format *header = NULL;
     struct mesh_header_option_format *option = NULL;
     uint8_t ot_len = sizeof(struct mesh_header_option_header_type) + sizeof(*option) + sizeof(dst); 
-
-	MESH_PARSER_PRINT("mesh_topo_test ot_len:%d, header:%d, *option:%d\r\n",ot_len,sizeof(struct mesh_header_option_header_type),sizeof(*option));
 	
     if (!wifi_get_macaddr(STATION_IF, src)) {
         MESH_PARSER_PRINT("get sta mac fail\n");
@@ -83,6 +81,8 @@ void ICACHE_FLASH_ATTR mesh_topo_test()
     if (espconn_mesh_is_root()) {
         uint8_t *sub_dev_mac = NULL;
         uint16_t sub_dev_count = 0;
+		
+		MESH_PARSER_PRINT("this is root\r\n");
         if (!espconn_mesh_get_node_info(MESH_NODE_ALL, &sub_dev_mac, &sub_dev_count))
             return;
         // the first one is mac address of router
@@ -134,13 +134,13 @@ void ICACHE_FLASH_ATTR mesh_topo_test()
         MESH_PARSER_PRINT("set option fail\n");
         goto TOPO_FAIL;
     }
-	
-	MESH_PARSER_PRINT("header.len:%d\r\n",header->len);
-	for (i = 0; i < header->len; i++)
-	{
-		MESH_PARSER_PRINT("%02X, ", *((u8 *)header + i));
-	}
-	MESH_PARSER_PRINT("\r\n");
+
+//	MESH_PARSER_PRINT("header_len:%d, len:%d, ot_len:%d, option_header:%d, *option:%d\r\n",sizeof(struct mesh_header_format), header->len, ot_len,sizeof(struct mesh_header_option_header_type),sizeof(*option));
+//	for (i = 0; i < header->len; i++)
+//	{
+//		MESH_PARSER_PRINT("%02X, ", *((u8 *)header + i));
+//	}
+//	MESH_PARSER_PRINT("\r\n");
 
     if (espconn_mesh_sent(&g_ser_conn, (uint8_t *)header, header->len)) {
         MESH_PARSER_PRINT("topo mesh is busy\n");

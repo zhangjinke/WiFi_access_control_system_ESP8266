@@ -3,6 +3,9 @@
 
 #include "c_types.h"
 
+extern bool g_mesh_device_init;
+extern struct mesh_device_list_type g_node_list;
+
 struct mesh_device_mac_type {
     uint8_t mac[6];
 } __packed;

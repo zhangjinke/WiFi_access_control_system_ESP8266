@@ -13,8 +13,8 @@
 #define MESH_DEV_MEMCMP os_memcmp
 #define MESH_DEV_FREE   os_free
 
-static bool g_mesh_device_init = false;
-static struct mesh_device_list_type g_node_list;
+bool g_mesh_device_init = false;
+struct mesh_device_list_type g_node_list;
 
 void ICACHE_FLASH_ATTR
 mesh_device_disp_mac_list()

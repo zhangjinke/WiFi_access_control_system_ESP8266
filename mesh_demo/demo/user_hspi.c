@@ -13,6 +13,7 @@
 *********************************************************************************************************/
 
 #include "user_hspi.h"
+#include "command.h"
 
 #include "osapi.h"
 #include "user_interface.h"
@@ -209,7 +210,7 @@ void spi_slave_isr_sta(void *para)
 				/* 接收完成 */
 				if (is_recv_pack == 1)
 				{
-					os_printf("%d\r\n",recv_lenth);
+					//os_printf("%d\r\n",recv_lenth);
 					system_os_post(HSPI_RECV_TASK_PRIO,HSPI_RECV,0);
 				}
 			}
@@ -274,6 +275,7 @@ void ICACHE_FLASH_ATTR hspi_slave_init()
 }
 
 os_event_t hspi_recv_Queue[HSPI_RECV_QUEUE_LEN];
+struct wifi_pack wifi_pack_send;
 
 /*******************************************************************************
 * 函数名 	: hspi_send_task
@@ -288,8 +290,7 @@ void ICACHE_FLASH_ATTR hspi_send_task(os_event_t *e)
 	{
 	    case HSPI_SEND:
 		{
-//			spi_send_data(recv_pack,recv_lenth);
-//			is_recv_pack = 0;
+			wifi_send(wifi_pack_send.cmd, wifi_pack_send.lenth, wifi_pack_send.data);
 		} break;
         default: break;
     }
@@ -355,8 +356,9 @@ void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth)
 	}
 	
 	wifi_pack_recv.data = recv_pack + par_lenth;
+	command_execute();
+#if 0
 	wifi_send(0x09, wifi_pack_recv.lenth, wifi_pack_recv.data);
-
 	os_printf("cmd: %d, lenth: %d, crc: %08X\r\n", wifi_pack_recv.cmd, wifi_pack_recv.lenth, wifi_pack_recv.crc);
 	
 	for (i = 0; i < wifi_pack_recv.lenth; i++)
@@ -364,7 +366,7 @@ void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth)
 		os_printf("%02X ", *(wifi_pack_recv.data + i));
 	}
 		os_printf("\r\n");
-	
+#endif
 	is_recv_pack = 0; /* 重新等待接收数据 */
 }
 

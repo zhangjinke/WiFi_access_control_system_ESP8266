@@ -148,11 +148,11 @@ void ICACHE_FLASH_ATTR mesh_enable_cb(int8_t res)
     ser_tcp.local_port = espconn_port();
     g_ser_conn.proto.tcp = &ser_tcp;
 
-    if (espconn_regist_connectcb(&g_ser_conn, esp_mesh_demo_con_cb)) {
-        MESH_DEMO_PRINT("regist con_cb err\n");
-        espconn_mesh_disable(NULL);
-        return;
-    }
+//    if (espconn_regist_connectcb(&g_ser_conn, esp_mesh_demo_con_cb)) {
+//        MESH_DEMO_PRINT("regist con_cb err\n");
+//        espconn_mesh_disable(NULL);
+//        return;
+//    }
 
     if (espconn_regist_recvcb(&g_ser_conn, esp_recv_entrance)) {
         MESH_DEMO_PRINT("regist recv_cb err\n");
@@ -185,6 +185,7 @@ TEST_SCENARIO:
 
 void ICACHE_FLASH_ATTR esp_mesh_demo_test()
 {
+	int i;
     uint8_t src[6];
     uint8_t dst[6];
     struct mesh_header_format *header = NULL;
@@ -228,13 +229,16 @@ void ICACHE_FLASH_ATTR esp_mesh_demo_test()
         MESH_DEMO_PRINT("create packet fail\n");
         return;
     }
-
     if (!espconn_mesh_set_usr_data(header, tst_data, MESH_DEMO_STRLEN(tst_data))) {
         MESH_DEMO_PRINT("set user data fail\n");
         MESH_DEMO_FREE(header);
         return;
     }
-
+//	MESH_DEMO_PRINT("head:%d data:%d\r\n", sizeof(struct mesh_header_format),MESH_DEMO_STRLEN(tst_data));
+//    for (i = 0; i<header->len; i++){
+//		MESH_DEMO_PRINT("%02X ", ((u8 *)header)[i]);
+//	}
+//	MESH_DEMO_PRINT("\r\n");
     if (espconn_mesh_sent(&g_ser_conn, (uint8_t *)header, header->len)) {
         MESH_DEMO_PRINT("ucast mesh is busy\n");
         MESH_DEMO_FREE(header);
@@ -414,9 +418,10 @@ void user_init(void)
     /*
      * set uart baut ratio
      */
+	
     uart_div_modify(0, UART_CLK_FREQ / UART_BAUD_RATIO);
     uart_div_modify(1, UART_CLK_FREQ / UART_BAUD_RATIO);
-	
+	MESH_DEMO_PRINT("SDK version: %s \r\n", system_get_sdk_version());
 	MESH_DEMO_PRINT("\r\n=====user init=====\r\n");
 	
     if (!system_os_task(hspi_send_task,HSPI_SEND_TASK_PRIO,hspi_send_Queue,HSPI_SEND_QUEUE_LEN))
@@ -433,7 +438,6 @@ void user_init(void)
     if (!router_init()) {
         return;
     }
-
 
     if (!esp_mesh_demo_init())
         return;
