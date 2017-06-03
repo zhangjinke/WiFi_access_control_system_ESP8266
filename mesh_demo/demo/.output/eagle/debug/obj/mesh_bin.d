@@ -4,6 +4,6 @@
  ../../include/mesh.h ../../include/ip_addr.h ../../include/c_types.h \
  ../../include/user_interface.h ../../include/os_type.h \
  ../../include/ets_sys.h ../../include/eagle_soc.h ../../include/queue.h \
- ../include/user_config.h ../../include/spi_flash.h \
- ../../include/espconn.h ../include/command.h ../include/user_hspi.h \
- ../../include/user_interface.h ../include/user_hspi.h
+ ../include/user_config.h ../../include/user_interface.h \
+ ../../include/spi_flash.h ../../include/espconn.h ../include/command.h \
+ ../include/user_hspi.h ../include/user_hspi.h

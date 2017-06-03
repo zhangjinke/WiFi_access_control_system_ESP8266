@@ -27,7 +27,7 @@ mesh_bin_proto_parser(const void *mesh_header, uint8_t *pdata, uint16_t len)
 	{
 		send_buffer[i] = ((u8 *)header)[i];
 	}
-	wifi_pack_send.cmd = cmd_send_data_to_mcu;
+	wifi_pack_send.cmd = CMD_SEND_DATA_TO_MCU;
 	wifi_pack_send.lenth = header->len;
 	wifi_pack_send.data = send_buffer;
 	system_os_post(HSPI_SEND_TASK_PRIO,HSPI_SEND,0);

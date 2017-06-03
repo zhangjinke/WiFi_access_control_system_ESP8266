@@ -3,7 +3,8 @@
  ../../include/user_interface.h ../../include/os_type.h \
  ../../include/ets_sys.h ../../include/eagle_soc.h ../../include/queue.h \
  ../include/user_config.h ../../include/c_types.h \
- ../../include/spi_flash.h ../../include/espconn.h ../../include/osapi.h \
+ ../../include/user_interface.h ../../include/spi_flash.h \
+ ../../include/espconn.h ../../include/osapi.h \
  /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/4.8.2/include/string.h \
  /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/4.8.2/include/_ansi.h \
  /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/4.8.2/include/newlib.h \
@@ -17,5 +18,4 @@
  ../include/mesh_parser.h ../include/mesh_http.h ../include/mesh_json.h \
  ../include/mesh_mqtt.h ../include/mesh_none.h ../include/mesh_bin.h \
  ../include/mesh_device.h ../include/esp_touch.h ../include/user_config.h \
- ../include/smartconfig.h ../include/user_hspi.h \
- ../../include/user_interface.h
+ ../include/smartconfig.h ../include/user_hspi.h

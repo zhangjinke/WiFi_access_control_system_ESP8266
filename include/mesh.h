@@ -10,7 +10,7 @@
 //const struct eth_addr mesh_mcast_addr = {{0x01, 0x00, 0x5E, 0x00, 0x00, 0x00}};
 
 #define ESP_MESH_VER                    (0)
-#define ESP_MESH_GROUP_ID_LEN           (6)
+#define ESP_g_mesh_group_id_LEN           (6)
 #define ESP_MESH_ADDR_LEN               (6)
 #define ESP_MESH_OPTION_MAX_LEN         (255)
 #define ESP_MESH_PKT_LEN_MAX            (1300)
@@ -139,7 +139,7 @@ struct mesh_header_format {
 
 struct mesh_scan_para_type {
     espconn_mesh_scan_callback usr_scan_cb; // scan done callback
-    uint8_t grp_id[ESP_MESH_GROUP_ID_LEN];  // group id
+    uint8_t grp_id[ESP_g_mesh_group_id_LEN];  // group id
     bool grp_set;                           // group set
 };
 

@@ -21,8 +21,17 @@
 #include "gpio.h"
 #include "mem.h"
 
-#define start_bit (1 << 7)
-#define end_bit (1 << 6)
+#define start_bit (1 << 7) /* 首包标志位 */
+#define end_bit   (1 << 6) /* 末包标志位 */
+
+/* 获取结构体成员偏移宏定义 */
+#define OFFSET(Type, member)      ((uint32)&(((struct Type*)0)->member))
+#define MEMBER_SIZE(Type, member) sizeof(((struct Type*)0)->member)
+
+os_event_t hspi_recv_Queue[HSPI_RECV_QUEUE_LEN];
+os_event_t hspi_send_Queue[HSPI_SEND_QUEUE_LEN];
+struct wifi_pack wifi_pack_send;
+struct wifi_pack wifi_pack_recv;
 
 /* SPI接收部分变量 */
 static uint8  recv_pack[1024*5] = {0}; /* 接收缓冲区 */
@@ -31,6 +40,8 @@ static uint8 is_recv_pack = 0;
 
 /* SPI发送完成标志位 */
 volatile static uint8  wr_rdy     = 1;
+
+void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth);
 
 /*******************************************************************************
 * 函数名 	: spi_send_data
@@ -57,66 +68,53 @@ s8 spi_send_data(uint8 *pack, uint32 lenth)
 	}
 //	os_printf("lenth: %d, num: %d, last_byte: %d\r\n", lenth, num, last_byte);
 	/* 检查参数合法性 */
-	if (pack == NULL)
-	{
+	if (pack == NULL) {
 		os_printf("pack addr is NULL\r\n");
 		return -1;
 	}
 	
-	for (i = 0; i < num; i++)
-	{
-		send_buf[0] = 0;                              	/* 清空command byte */
+	for (i = 0; i < num; i++) {
+		send_buf[0] = 0;                         /* 清空command byte */
+		
 		/* 设置command byte */
-		if (i != num - 1)        					/* 如果不为首末包,设置当前包长度 */
-		{
-			send_buf[0] = 31; 
+		if (i != num - 1) { 
+			send_buf[0] = 31;                    /* 如果不为首末包,设置当前包长度 */
+		} else {
+			send_buf[0] = (end_bit | last_byte); /* 设置当前包长度并添加末包标志位 */
 		}
-		else                              			/* 设置当前包长度并添加末包标志位 */
-		{
-			send_buf[0] = (end_bit | last_byte);
-		}
-		if (i == 0)
-		{
-			send_buf[0] |= start_bit;              /* 添加首包标志位 */
+		if (i == 0) {
+			send_buf[0] |= start_bit;            /* 添加首包标志位 */
 			wr_rdy = 1;
 		}
 		
 		/* 将数据复制到发送buf中 */
-		if(i == num - 1) 
-		{
-			for (j = 0; j < last_byte; j++) 
-			{
-				send_buf[j + 1] = pack[i*31 + j]; 
+		if (i == num - 1) {
+			for (j = 0; j < last_byte; j++) {
+				send_buf[j + 1] = pack[i * 31 + j]; 
 			}
-		}
-		else
-		{
-			for (j = 0; j < 31; j++) 
-			{
-				send_buf[j + 1] = pack[i*31 + j];
+		} else {
+			for (j = 0; j < 31; j++) {
+				send_buf[j + 1] = pack[i * 31 + j];
 			}
 		}
 		
 		/* 等待发送准备好标志位 */
 		t = 3000000;
-		while((wr_rdy != 1)&&(t != 0))
-		{
+		while((wr_rdy != 1)&&(t != 0)) {
 			t--;
 		}
 		wr_rdy = 0;
-		if (t == 0)
-		{
-			os_printf("out time\r\n");
+		if (t == 0) {
+			os_printf("spi send data out time\r\n");
 			GPIO_OUTPUT_SET(5, 0); /* GPIO5置0 */
-			return -1; /* 等待超时，返回错误 */
+			return -1;             /* 等待超时，返回错误 */
 		}
+		
 		/* 将buf中的数据填充到SPI的寄存器中 */
 		SPISlaveSendData(SpiNum_HSPI, (uint32_t *)send_buf, 8);
-//		os_printf("send %d pack\r\n", i);
 		GPIO_OUTPUT_SET(5, 1); /* GPIO5置1 */
 	}
 	
-//	os_printf("send success\r\n");
 	return 0;
 }
 
@@ -131,42 +129,47 @@ void spi_slave_isr_sta(void *para)
 {
 	static uint32 regvalue            = 0; /* 保存寄存器值 */
 	static uint32 i                   = 0; /* 循环变量 */
+	
 	/* SPI接收部分变量 */
 	static uint32 recv_data 		  = 0; /* 保存SPI接收寄存器的值 */
 	static uint8 buf[32]            = {0}; /* 接收缓冲区 */
 	static uint8 isReceive = 0;
 	static uint32 pack_counter = 0;        /* 接收数据包计数器 */
 	
-	/* SPI中断 */
-	if (READ_PERI_REG(0x3ff00020)&BIT4)
+	
+	if (READ_PERI_REG(0x3ff00020)&BIT4)                    /* SPI中断 */
 	{
+		
 		/* 关闭SPI中断 */
 		CLEAR_PERI_REG_MASK(SPI_SLAVE(SpiNum_SPI), 0x3ff);
-	}
-	/* HSPI中断 */
-	else if (READ_PERI_REG(0x3ff00020)&BIT7)
-	{
+	} else if (READ_PERI_REG(0x3ff00020)&BIT7) {           /* HSPI中断 */
+	
 		/* 记录中断类型 */
 		regvalue = READ_PERI_REG(SPI_SLAVE(SpiNum_HSPI));
+		
 		/* 关闭中断使能 */
 		SPIIntClear(SpiNum_HSPI);
+		
 		/* 将HSPI恢复到可通信状态, 准备下一次通信 */
 		SET_PERI_REG_MASK(SPI_SLAVE(SpiNum_HSPI), SPI_SYNC_RESET);
+		
 		/* 清除中断标志位 */
 		SPIIntClear(SpiNum_HSPI);
+		
 		/* 打开中断使能 */
-		SPIIntEnable(SpiNum_HSPI,     SpiIntSrc_WrStaDone
-									| SpiIntSrc_RdStaDone
-									| SpiIntSrc_WrBufDone
-									| SpiIntSrc_RdBufDone);
+		SPIIntEnable(SpiNum_HSPI, SpiIntSrc_WrStaDone |
+                                  SpiIntSrc_RdStaDone |
+                                  SpiIntSrc_WrBufDone |
+                                  SpiIntSrc_RdBufDone);
+		
 		/* 主机写入，从机接收处理程序 */
-		if (regvalue & SPI_SLV_WR_BUF_DONE) 
-		{
-			GPIO_OUTPUT_SET(4, 0); /* GPIO4清0 */
+		if (0 != (regvalue & SPI_SLV_WR_BUF_DONE)) {
+			
+			/* GPIO4清0 */
+			GPIO_OUTPUT_SET(4, 0); 
 			
 			/* 取8次，每次取出一个32位数，共取出32*8=256位，也即32个字节 */
-			for (i = 0; i < 8; i++)
-			{
+			for (i = 0; i < 8; i++) {
 				recv_data=READ_PERI_REG(SPI_W0(SpiNum_HSPI)+(i<<2));
 				buf[(i<<2)+0] = (recv_data>>0)&0xff;
 				buf[(i<<2)+1] = (recv_data>>8)&0xff;
@@ -174,42 +177,36 @@ void spi_slave_isr_sta(void *para)
 				buf[(i<<2)+3] = (recv_data>>24)&0xff;
 			}
 
-			if (is_recv_pack == 0)
-			{
+			if (is_recv_pack == 0) {
+				 
 				/* 搜索首包 */
-				if (( buf[0] & start_bit) == start_bit)
-				{
+				if (( buf[0] & start_bit) == start_bit) {
 					i = 0;
 					is_recv_pack = 0;
 					isReceive = 1;
 					pack_counter = 0;
 					recv_lenth = 0;
 				}
+				
 				/* 搜索到首包之后开始接收数据 */
-				if (isReceive)
-				{
+				if (isReceive) {
 					recv_lenth += buf[0] & 0x3f;					/* 记录接收到的字节数 */
-					if (( buf[0] & end_bit) == end_bit) 			/* 判断是否收到末包 */
-					{
-						for (i = 0; i < (buf[0] & 0x3f); i++)
-						{
+					if (( buf[0] & end_bit) == end_bit) { 			/* 判断是否收到末包 */
+						for (i = 0; i < (buf[0] & 0x3f); i++) {
 							recv_pack[pack_counter*31 + i] = buf[i + 1];
 						}
 						isReceive = 0;
 						is_recv_pack = 1;							/* 收到末包之后停止接收数据并置位接收完成标志 */
-					}
-					else
-					{
-						for (i = 0; i < 31; i++)
-						{
+					} else {
+						for (i = 0; i < 31; i++) {
 							recv_pack[pack_counter*31 + i] = buf[i + 1];
 						}
 						pack_counter++; 							/* 记录接收到的包数 */
 					}
-				}	
+				}
+				
 				/* 接收完成 */
-				if (is_recv_pack == 1)
-				{
+				if (is_recv_pack == 1) {
 					//os_printf("%d\r\n",recv_lenth);
 					system_os_post(HSPI_RECV_TASK_PRIO,HSPI_RECV,0);
 				}
@@ -274,9 +271,6 @@ void ICACHE_FLASH_ATTR hspi_slave_init()
 	GPIO_OUTPUT_SET(4, 1);	//GPIO4置1,表示从机准备好，主机可以发送数据到从机
 }
 
-os_event_t hspi_recv_Queue[HSPI_RECV_QUEUE_LEN];
-struct wifi_pack wifi_pack_send;
-
 /*******************************************************************************
 * 函数名 	: hspi_send_task
 * 描述   	: hspi发送任务
@@ -295,10 +289,6 @@ void ICACHE_FLASH_ATTR hspi_send_task(os_event_t *e)
         default: break;
     }
 }
-
-void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth);
-
-os_event_t hspi_send_Queue[HSPI_SEND_QUEUE_LEN];
 
 /*******************************************************************************
 * 函数名 	: hspi_recv_task
@@ -320,18 +310,12 @@ void ICACHE_FLASH_ATTR hspi_recv_task(os_event_t *e)
     }
 }
 
-/* 获取结构体成员偏移宏定义 */
-#define OFFSET(Type, member) ( (uint32)&(((struct Type*)0)->member) )
-#define MEMBER_SIZE(Type, member) sizeof(((struct Type*)0)->member)
-
-struct wifi_pack wifi_pack_recv;
-
 /*******************************************************************************
 * 函数名 	: hspi_data_process
 * 描述   	: hspi数据处理
 * 输入     	: - pack: 接收到的数据 - lenth: 数据大小
 * 输出     	: None
-* 返回值    : None
+* 返回值     : None
 *******************************************************************************/
 void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth)
 {
@@ -340,16 +324,17 @@ void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth)
 	static uint32 i = 0;
 
 	os_memcpy(&wifi_pack_recv, recv_pack, par_lenth);
+	
 	/* 校验包长度 */
-	if (wifi_pack_recv.lenth + par_lenth != recv_lenth)
-	{
+	if (wifi_pack_recv.lenth + par_lenth != recv_lenth) {
 		is_recv_pack = 0; /* 重新等待接收数据 */
 		os_printf("lenth verify failed\r\n");
 		return;
 	}
+	
 	/* CRC校验 */
-	if (wifi_pack_recv.crc != CRC32Software(recv_pack + crc_lenth, par_lenth - crc_lenth + wifi_pack_recv.lenth))
-	{
+	if (wifi_pack_recv.crc != 
+        CRC32Software(recv_pack + crc_lenth, par_lenth - crc_lenth + wifi_pack_recv.lenth)) {
 		is_recv_pack = 0; /* 重新等待接收数据 */
 		os_printf("crc verify failed %08X\r\n", wifi_pack_recv.crc);
 		return;
@@ -370,7 +355,6 @@ void ICACHE_FLASH_ATTR hspi_data_process(uint8 *pack, uint32 lenth)
 	is_recv_pack = 0; /* 重新等待接收数据 */
 }
 
-
 s8 wifi_send(u8 cmd, u16 data_lenth, u8 *data)
 {
 	struct wifi_pack wifi_pack_send;
@@ -388,14 +372,19 @@ s8 wifi_send(u8 cmd, u16 data_lenth, u8 *data)
 
 	wifi_pack_send.cmd = cmd;                /* 命令 */
 	wifi_pack_send.lenth = data_lenth;       /* 数据长度 */
+	
 	/* 将除CRC之外的其它参数拷贝到缓冲区 */
 	os_memcpy(send_pack + crc_lenth, (u8 *)&wifi_pack_send + crc_lenth, par_lenth - crc_lenth);
+	
 	/* 将数据拷贝到缓冲区 */
 	os_memcpy(send_pack + par_lenth, data, data_lenth);
+	
 	/* 计算CRC */
 	wifi_pack_send.crc = CRC32Software(send_pack + crc_lenth, par_lenth - crc_lenth + data_lenth);
+	
 	/* 将CRC拷贝到缓冲区 */
 	os_memcpy(send_pack, &wifi_pack_send, crc_lenth);
+	
 	/* 发送数据 */
 	if (spi_send_data(send_pack, par_lenth + data_lenth) != 0)
 	{

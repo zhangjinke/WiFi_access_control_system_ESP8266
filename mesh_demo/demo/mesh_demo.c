@@ -13,6 +13,7 @@
 #include "osapi.h"
 #include "mesh_parser.h"
 #include "esp_touch.h"
+#include "user_interface.h"
 
 #include "user_hspi.h"
 
@@ -143,8 +144,8 @@ void ICACHE_FLASH_ATTR mesh_enable_cb(int8_t res)
     MESH_DEMO_MEMSET(&g_ser_conn, 0 ,sizeof(g_ser_conn));
     MESH_DEMO_MEMSET(&ser_tcp, 0, sizeof(ser_tcp));
 
-    MESH_DEMO_MEMCPY(ser_tcp.remote_ip, server_ip, sizeof(server_ip));
-    ser_tcp.remote_port = server_port;
+    MESH_DEMO_MEMCPY(ser_tcp.remote_ip, g_server_ip, sizeof(g_server_ip));
+    ser_tcp.remote_port = g_server_port;
     ser_tcp.local_port = espconn_port();
     g_ser_conn.proto.tcp = &ser_tcp;
 
@@ -178,9 +179,9 @@ void ICACHE_FLASH_ATTR mesh_enable_cb(int8_t res)
 TEST_SCENARIO:
     mesh_device_list_init();
     mesh_topo_test_init();
-    mesh_json_mcast_test_init();
-    mesh_json_bcast_test_init();
-    mesh_json_p2p_test_init();
+//    mesh_json_mcast_test_init();
+//    mesh_json_bcast_test_init();
+//    mesh_json_p2p_test_init();
 }
 
 void ICACHE_FLASH_ATTR esp_mesh_demo_test()
@@ -198,9 +199,9 @@ void ICACHE_FLASH_ATTR esp_mesh_demo_test()
      * the mesh data can be any content
      * it can be string(json/http), or binary(MQTT).
      */
-    char *tst_data = "{\"req_key\":\"req_key_val\"}\r\n";
+    //char *tst_data = "{\"req_key\":\"req_key_val\"}\r\n";
     // uint8_t tst_data[] = {'a', 'b', 'c', 'd'};}
-    // uint8_t tst_data[] = {0x01, 0x02, 0x03, 0x04, 0x00};
+    uint8_t tst_data[] = {0x31, 0x32, 0x33, 0x34, 0x00};
 
     MESH_DEMO_PRINT("free heap:%u\n", system_get_free_heap_size());
 
@@ -208,8 +209,8 @@ void ICACHE_FLASH_ATTR esp_mesh_demo_test()
         MESH_DEMO_PRINT("get sta mac fail\n");
         return;
     }
-    MESH_DEMO_MEMCPY(dst, server_ip, sizeof(server_ip));
-    MESH_DEMO_MEMCPY(dst + sizeof(server_ip), &server_port, sizeof(server_port));
+    MESH_DEMO_MEMCPY(dst, g_server_ip, sizeof(g_server_ip));
+    MESH_DEMO_MEMCPY(dst + sizeof(g_server_ip), &g_server_port, sizeof(g_server_port));
 
     header = (struct mesh_header_format *)espconn_mesh_create_packet(
                             dst,   // destiny address
@@ -245,6 +246,7 @@ void ICACHE_FLASH_ATTR esp_mesh_demo_test()
         /*
          * if fail, we re-connect mesh
          */
+        espconn_mesh_enable(mesh_enable_cb, MESH_ONLINE);
         espconn_mesh_connect(&g_ser_conn);
         return;
     }
@@ -272,7 +274,7 @@ bool ICACHE_FLASH_ATTR esp_mesh_demo_init()
     /*
      * set the AP password of mesh node
      */
-    if (!espconn_mesh_encrypt_init(MESH_AUTH, MESH_PASSWD, MESH_DEMO_STRLEN(MESH_PASSWD))) {
+    if (!espconn_mesh_encrypt_init(g_mesh_auth, g_mesh_passwd, MESH_DEMO_STRLEN(g_mesh_passwd))) {
         MESH_DEMO_PRINT("set pw fail\n");
         return false;
     }
@@ -282,25 +284,25 @@ bool ICACHE_FLASH_ATTR esp_mesh_demo_init()
      * please make the heap is avaliable
      * mac_route_table_size = (4^max_hop - 1)/3 * 6
      */
-    if (!espconn_mesh_set_max_hops(MESH_MAX_HOP)) {
+    if (!espconn_mesh_set_max_hops(g_mesh_max_hop)) {
         MESH_DEMO_PRINT("fail, max_hop:%d\n", espconn_mesh_get_max_hops());
         return false;
     }
 
     /*
      * mesh_ssid_prefix
-     * mesh_group_id and mesh_ssid_prefix represent mesh network
+     * g_mesh_group_id and mesh_ssid_prefix represent mesh network
      */
-    if (!espconn_mesh_set_ssid_prefix(MESH_SSID_PREFIX, MESH_DEMO_STRLEN(MESH_SSID_PREFIX))) {
+    if (!espconn_mesh_set_ssid_prefix(g_mesh_ssid_prefix, MESH_DEMO_STRLEN(g_mesh_ssid_prefix))) {
         MESH_DEMO_PRINT("set prefix fail\n");
         return false;
     }
 
     /*
-     * mesh_group_id
-     * mesh_group_id and mesh_ssid_prefix represent mesh network
+     * g_mesh_group_id
+     * g_mesh_group_id and mesh_ssid_prefix represent mesh network
      */
-    if (!espconn_mesh_group_id_init((uint8_t *)MESH_GROUP_ID, sizeof(MESH_GROUP_ID))) {
+    if (!espconn_mesh_group_id_init((uint8_t *)g_mesh_group_id, sizeof(g_mesh_group_id))) {
         MESH_DEMO_PRINT("set grp id fail\n");
         return false;
     }
@@ -308,7 +310,7 @@ bool ICACHE_FLASH_ATTR esp_mesh_demo_init()
     /*
      * set cloud server ip and port for mesh node
      */
-    if (!espconn_mesh_server_init((struct ip_addr *)server_ip, server_port)) {
+    if (!espconn_mesh_server_init((struct ip_addr *)g_server_ip, g_server_port)) {
         MESH_DEMO_PRINT("server_init fail\n");
         return false;
     }
@@ -347,11 +349,11 @@ static bool ICACHE_FLASH_ATTR router_init()
 */
 	{
         /*
-         * please change MESH_ROUTER_SSID and MESH_ROUTER_PASSWD according to your router
+         * please change g_mesh_router_ssid and g_mesh_router_passwd according to your router
          */
         MESH_DEMO_MEMSET(&config, 0, sizeof(config));
-        MESH_DEMO_MEMCPY(config.ssid, MESH_ROUTER_SSID, MESH_DEMO_STRLEN(MESH_ROUTER_SSID));
-        MESH_DEMO_MEMCPY(config.password, MESH_ROUTER_PASSWD, MESH_DEMO_STRLEN(MESH_ROUTER_PASSWD));
+        MESH_DEMO_MEMCPY(config.ssid, g_mesh_router_ssid, MESH_DEMO_STRLEN(g_mesh_router_ssid));
+        MESH_DEMO_MEMCPY(config.password, g_mesh_router_passwd, MESH_DEMO_STRLEN(g_mesh_router_passwd));
         /*
          * if you use router with hide ssid, you MUST set bssid in config,
          * otherwise, node will fail to connect router.
@@ -360,7 +362,7 @@ static bool ICACHE_FLASH_ATTR router_init()
          * and you don't need to modify the bssid, mesh will ignore the bssid.
          */
         config.bssid_set = 1;
-        MESH_DEMO_MEMCPY(config.bssid, MESH_ROUTER_BSSID, sizeof(config.bssid));
+        MESH_DEMO_MEMCPY(config.bssid, g_mesh_router_bssid, sizeof(config.bssid));
     }
 
     /*
@@ -407,6 +409,79 @@ static void ICACHE_FLASH_ATTR wait_esptouch_over(os_timer_t *timer)
      */
 }
 
+/*
+ * \brief 向mesh网络中发送数据
+ *
+ * \param[in] dst   目标地址
+ * \param[in] data  数据首地址 全0为发送到服务器
+ * \param[in] lenth 数据长度
+ *
+ * \return 无
+ */
+void ICACHE_FLASH_ATTR esp_mesh_data_send (uint8_t *p_dst, 
+                                           uint8_t *p_data, 
+                                           uint8_t lenth)
+{
+	int i;
+    uint8_t src[6];
+    uint8_t dst_server[6] = {0, 0, 0, 0, 0, 0};
+    struct mesh_header_format *header = NULL;
+
+	MESH_DEMO_PRINT("dst addr:" MACSTR " lenth:%d\r\n", MAC2STR((p_dst)), lenth);
+    if (!wifi_get_macaddr(STATION_IF, src)) {
+        MESH_DEMO_PRINT("get sta mac fail\n");
+        return;
+    }
+	
+	if (0 == memcmp(p_dst, dst_server, 6)) {
+		MESH_DEMO_MEMCPY(p_dst, g_server_ip, sizeof(g_server_ip));
+		MESH_DEMO_MEMCPY(p_dst + sizeof(g_server_ip), &g_server_port, sizeof(g_server_port));
+	}
+
+    header = (struct mesh_header_format *)espconn_mesh_create_packet(
+				 p_dst, // destiny address
+				 src,   // source address
+				 false, // not p2p packet
+				 true,  // piggyback congest request
+				 M_PROTO_BIN, // packe with JSON format
+				 lenth, // data length
+				 false, // no option
+				 0,     // option len
+				 false, // no frag
+				 0,     // frag type, this packet doesn't use frag
+				 false, // more frag
+				 0,     // frag index
+				 0);    // frag length
+    if (!header) {
+        MESH_DEMO_PRINT("create packet fail\n");
+        return;
+    }
+    if (!espconn_mesh_set_usr_data(header, p_data, lenth)) {
+        MESH_DEMO_PRINT("set user data fail\n");
+        MESH_DEMO_FREE(header);
+        return;
+    }
+	
+	MESH_DEMO_PRINT("dst addr:" MACSTR "\r\n", MAC2STR((p_dst)));
+	MESH_DEMO_PRINT("head:%d data:%d\r\n", sizeof(struct mesh_header_format), lenth);
+    for (i = 0; i < header->len; i++){
+		MESH_DEMO_PRINT("%02X ", ((u8 *)header)[i]);
+	}
+	MESH_DEMO_PRINT("\r\n");
+    if (espconn_mesh_sent(&g_ser_conn, (uint8_t *)header, header->len)) {
+        MESH_DEMO_PRINT("ucast mesh is busy\n");
+        MESH_DEMO_FREE(header);
+        /*
+         * if fail, we re-connect mesh
+         */
+        espconn_mesh_enable(mesh_enable_cb, MESH_ONLINE);
+        espconn_mesh_connect(&g_ser_conn);
+        return;
+    }
+
+    MESH_DEMO_FREE(header);
+}
+
 /******************************************************************************
  * FunctionName : user_init
  * Description  : entry of user application, init user function here
@@ -415,15 +490,13 @@ static void ICACHE_FLASH_ATTR wait_esptouch_over(os_timer_t *timer)
 *******************************************************************************/
 void user_init(void)
 {
-    /*
-     * set uart baut ratio
-     */
-	
-    uart_div_modify(0, UART_CLK_FREQ / UART_BAUD_RATIO);
-    uart_div_modify(1, UART_CLK_FREQ / UART_BAUD_RATIO);
+	/* 配置串口波特率 */
+    uart_div_modify(0, UART_CLK_FREQ / g_uart_baud_ratio);
+    uart_div_modify(1, UART_CLK_FREQ / g_uart_baud_ratio);
 	MESH_DEMO_PRINT("SDK version: %s \r\n", system_get_sdk_version());
 	MESH_DEMO_PRINT("\r\n=====user init=====\r\n");
 	
+	/* 初始化HSPI相关任务 */
     if (!system_os_task(hspi_send_task,HSPI_SEND_TASK_PRIO,hspi_send_Queue,HSPI_SEND_QUEUE_LEN))
     {
 		MESH_DEMO_PRINT("task hspi send failed\r\n");
@@ -433,31 +506,29 @@ void user_init(void)
 		MESH_DEMO_PRINT("task hspi recv failed\r\n");
 	}
 
+	/* 初始化HSPI */
 	hspi_slave_init();
-	
+}
+
+void ICACHE_FLASH_ATTR mesh_init (void)
+{
+	MESH_DEMO_PRINT("\r\n=====user_config=====\r\n");
+	MESH_DEMO_PRINT("server_ip: %d.%d.%d.%d port:%d\r\n", g_server_ip[0], g_server_ip[1], g_server_ip[2], g_server_ip[3], g_server_port);
+	MESH_DEMO_PRINT("router_ssid: %s passwd:%s auth:%d\r\n", g_mesh_router_ssid, g_mesh_router_passwd, g_mesh_auth);
+	MESH_DEMO_PRINT("router_bssid: "MACSTR"\r\n", MAC2STR(g_mesh_router_bssid));
+    MESH_DEMO_PRINT("mesh_ssid: %s passwd:%s\r\n", g_mesh_ssid_prefix, g_mesh_passwd);
+    MESH_DEMO_PRINT("mesh_group_id: "MACSTR"\r\n", MAC2STR(g_mesh_group_id));
+    MESH_DEMO_PRINT("\r\n=====================\r\n");
+ 
+	/* 路由器初始化 */
     if (!router_init()) {
         return;
     }
 
+	/* 初始化mesh */
     if (!esp_mesh_demo_init())
         return;
     
-//    user_devicefind_init();
-    /*
-     * enable mesh
-     * after enable mesh, you should wait for the mesh_enable_cb to be triggered.
-     */
+	/* 启动mesh */
     espconn_mesh_enable(mesh_enable_cb, MESH_ONLINE);
-
-    /*
-     * while system runs smartconfig (STA mode), mesh (STA + SoftAp mode) must not been enabled,
-     * So wait for esptouch to run over and then execute espconn_mesh_enable
-     */
-/*
-    os_timer_t *wait_timer = (os_timer_t *)os_zalloc(sizeof(os_timer_t));
-    if (NULL == wait_timer) return;
-    os_timer_disarm(wait_timer);
-    os_timer_setfn(wait_timer, (os_timer_func_t *)wait_esptouch_over, wait_timer);
-    os_timer_arm(wait_timer, 1000, true);
-*/
 }

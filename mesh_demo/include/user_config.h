@@ -1,6 +1,17 @@
-#ifndef __USER_CONFIG_H__
-#define __USER_CONFIG_H__
+/**
+ * \file
+ * \brief 配置信息
+ * 
+ * \internal
+ * \par Modification history
+ * - 1.00 17-06-03  zhangjinke, first implementation.
+ * \endinternal
+ */
+#ifndef __USER_CONFIG_H
+#define __USER_CONFIG_H
+
 #include "c_types.h"
+#include "user_interface.h"
 
 #define MESH_DEMO_PRINT  ets_printf
 #define MESH_DEMO_STRLEN ets_strlen
@@ -8,21 +19,38 @@
 #define MESH_DEMO_MEMSET ets_memset
 #define MESH_DEMO_FREE   os_free
 
-static const uint16_t server_port = 2756;                  /*PORT USED BY USER IOT SERVER FOR MESH SERVICE*/  
-static const uint8_t server_ip[4] = {192, 168, 191, 1};   /*USER IOT SERVER IP ADDRESS*/
-static const uint32_t UART_BAUD_RATIO = 76800;             /*UART BAUD RATIO*/
-static const uint8_t MESH_GROUP_ID[6] = {0x18,0xfe,0x34,0x00,0x00,0x50};  /*MESH_GROUP_ID & MESH_SSID_PREFIX REPRESENTS ONE MESH NETWORK*/
-static const uint8_t MESH_ROUTER_BSSID[6] = {0x16, 0x27, 0x1e, 0x08, 0xf2, 0x46}; /*MAC OF ROUTER*/
+/** \brief 服务器端口 */
+extern uint16_t g_server_port;
 
-/*
- * please change MESH_ROUTER_SSID and MESH_ROUTER_PASSWD according to your router
- */
-#define MESH_ROUTER_SSID     "XDA"      /*THE ROUTER SSID*/
-#define MESH_ROUTER_PASSWD   "zzzzzzzzx"    /*THE ROUTER PASSWORD*/
-#define MESH_SSID_PREFIX     "MESH_PEACE"    /*SET THE DEFAULT MESH SSID PREFIX;THE FINAL SSID OF SOFTAP WOULD BE "MESH_SSID_PREFIX_X_YYYYYY"*/
-#define MESH_AUTH            AUTH_WPA2_PSK  /*AUTH_MODE OF SOFTAP FOR EACH MESH NODE*/
-#define MESH_PASSWD          "zzzzzzzzy"    /*SET PASSWORD OF SOFTAP FOR EACH MESH NODE*/
-#define MESH_MAX_HOP         (4)            /*MAX_HOPS OF MESH NETWORK*/
+/** \brief 服务器IP地址 */
+extern uint8_t  g_server_ip[4];
+
+/** \brief 串口波特率 */
+extern uint32_t g_uart_baud_ratio;
+
+/** \brief g_mesh_group_id和MESH_SSID_PREFIX相同即为同一MESH网络 */
+extern uint8_t  g_mesh_group_id[6];
+
+/** \brief 路由器MAC地址 */
+extern uint8_t  g_mesh_router_bssid[6];
+
+/** \brief 路由器名称 */
+extern uint8_t g_mesh_router_ssid[32 + 1];
+
+/** \brief 路由器密码 */
+extern uint8_t g_mesh_router_passwd[256 + 1];
+
+/** \brief MESH网络名称 */
+extern uint8_t g_mesh_ssid_prefix[32 + 1];
+
+/** \brief 路由器加密方式 */
+extern uint8_t g_mesh_auth;
+
+/** \brief MESH网络密码 */
+extern uint8_t g_mesh_passwd[256 + 1];
+
+/** \brief MESH网络最大跳数 */
+extern uint8_t g_mesh_max_hop;
 
 #endif
 

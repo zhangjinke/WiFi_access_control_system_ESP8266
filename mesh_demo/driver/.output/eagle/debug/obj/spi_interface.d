@@ -11,5 +11,7 @@
  /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/4.8.2/include/sys/_types.h \
  /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/4.8.2/include/sys/lock.h \
  /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/4.8.2/include/stddef.h \
- ../include/user_config.h ../../include/ets_sys.h ../../include/c_types.h \
- ../../include/eagle_soc.h
+ ../include/user_config.h ../../include/user_interface.h \
+ ../../include/os_type.h ../../include/ets_sys.h ../../include/c_types.h \
+ ../../include/eagle_soc.h ../../include/ip_addr.h ../../include/queue.h \
+ ../../include/spi_flash.h ../../include/ets_sys.h
