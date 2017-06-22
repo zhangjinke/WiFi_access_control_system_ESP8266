@@ -22,7 +22,7 @@
  */
 void ICACHE_FLASH_ATTR esp_mesh_data_send (uint8_t *p_dst, 
                                            uint8_t *p_data, 
-                                           uint8_t lenth);
+                                           uint32_t lenth);
 
 #endif /* __MESH_GLOBAL_H */
 

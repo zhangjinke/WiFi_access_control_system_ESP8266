@@ -16,7 +16,7 @@
 void ICACHE_FLASH_ATTR
 mesh_bin_proto_parser(const void *mesh_header, uint8_t *pdata, uint16_t len)
 {
-    MESH_PARSER_PRINT("%s\n", __func__);
+    //MESH_PARSER_PRINT("%s\n", __func__);
 	
     int i = 0;
     struct mesh_header_format *header = NULL;

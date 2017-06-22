@@ -36,7 +36,7 @@ struct wifi_pack wifi_pack_recv;
 /* SPI接收部分变量 */
 static uint8  recv_pack[1024*5] = {0}; /* 接收缓冲区 */
 static uint32 recv_lenth          = 0; /* 接收到的数据包的长度 */
-static uint8 is_recv_pack = 0;
+static uint8  is_recv_pack = 0;
 
 /* SPI发送完成标志位 */
 volatile static uint8  wr_rdy     = 1;
@@ -59,8 +59,8 @@ s8 spi_send_data(uint8 *pack, uint32 lenth)
 	static uint32 last_byte      = 0; /* 最后一包有效字节数 */
 	static uint8  send_buf[32] = {0}; /* 发送缓冲区 */
 
-	num = lenth/31 + 1;               /* 计算包数 */
-	last_byte = lenth%31;             /* 计算最后一包有效字节数 */
+	num = lenth / 31 + 1;               /* 计算包数 */
+	last_byte = lenth % 31;             /* 计算最后一包有效字节数 */
 	if (last_byte == 0)
 	{
 		num--;
@@ -131,13 +131,12 @@ void spi_slave_isr_sta(void *para)
 	static uint32 i                   = 0; /* 循环变量 */
 	
 	/* SPI接收部分变量 */
-	static uint32 recv_data 		  = 0; /* 保存SPI接收寄存器的值 */
-	static uint8 buf[32]            = {0}; /* 接收缓冲区 */
+	static uint32 recv_data 		  = 0;   /* 保存SPI接收寄存器的值 */
+	static uint8 buf[32]              = {0}; /* 接收缓冲区 */
 	static uint8 isReceive = 0;
-	static uint32 pack_counter = 0;        /* 接收数据包计数器 */
+	static uint32 pack_counter = 0;          /* 接收数据包计数器 */
 	
-	
-	if (READ_PERI_REG(0x3ff00020)&BIT4)                    /* SPI中断 */
+	if (READ_PERI_REG(0x3ff00020) & BIT4)                    /* SPI中断 */
 	{
 		
 		/* 关闭SPI中断 */
@@ -193,13 +192,13 @@ void spi_slave_isr_sta(void *para)
 					recv_lenth += buf[0] & 0x3f;					/* 记录接收到的字节数 */
 					if (( buf[0] & end_bit) == end_bit) { 			/* 判断是否收到末包 */
 						for (i = 0; i < (buf[0] & 0x3f); i++) {
-							recv_pack[pack_counter*31 + i] = buf[i + 1];
+							recv_pack[pack_counter * 31 + i] = buf[i + 1];
 						}
 						isReceive = 0;
 						is_recv_pack = 1;							/* 收到末包之后停止接收数据并置位接收完成标志 */
 					} else {
 						for (i = 0; i < 31; i++) {
-							recv_pack[pack_counter*31 + i] = buf[i + 1];
+							recv_pack[pack_counter * 31 + i] = buf[i + 1];
 						}
 						pack_counter++; 							/* 记录接收到的包数 */
 					}
@@ -208,7 +207,7 @@ void spi_slave_isr_sta(void *para)
 				/* 接收完成 */
 				if (is_recv_pack == 1) {
 					//os_printf("%d\r\n",recv_lenth);
-					system_os_post(HSPI_RECV_TASK_PRIO,HSPI_RECV,0);
+					system_os_post(HSPI_RECV_TASK_PRIO, HSPI_RECV, 0);
 				}
 			}
 			

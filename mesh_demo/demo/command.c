@@ -32,7 +32,7 @@ void command_execute(void)
 	char          *recv = NULL;
 	uint8_t        hspi_send_back = 1;
     
-//	os_printf("cmd: %d, lenth: %d, crc: %08X\r\n", wifi_pack_recv.cmd, wifi_pack_recv.lenth, wifi_pack_recv.crc);
+	os_printf("cmd: %d, lenth: %d, crc: %08X\r\n", wifi_pack_recv.cmd, wifi_pack_recv.lenth, wifi_pack_recv.crc);
 	switch (wifi_pack_recv.cmd) {
 			
 	/* 直接返回接收到的数据 */
@@ -131,6 +131,7 @@ void command_execute(void)
 	/* 向mesh网络中发送数据 */
 	case CMD_SEND_MESH_DATA:
 		hspi_send_back = 0;
+        //os_printf("wifi_pack_recv.lenth:%d\r\n",recv_lenth);
 		esp_mesh_data_send(wifi_pack_recv.data, wifi_pack_recv.data + 6, wifi_pack_recv.lenth - 6);
 		break;
 

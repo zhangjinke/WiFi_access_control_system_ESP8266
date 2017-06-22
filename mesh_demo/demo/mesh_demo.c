@@ -43,7 +43,7 @@ void ICACHE_FLASH_ATTR esp_recv_entrance(void *arg, char *pdata, uint16_t len)
     uint8_t *resp = "{\"rsp_key\":\"rsp_key_value\"}";
     struct mesh_header_format *header = (struct mesh_header_format *)pdata;
 
-    MESH_DEMO_PRINT("recv entrance\n");
+    //MESH_DEMO_PRINT("recv entrance\n");
     
     if (!pdata)
         return;
@@ -420,14 +420,14 @@ static void ICACHE_FLASH_ATTR wait_esptouch_over(os_timer_t *timer)
  */
 void ICACHE_FLASH_ATTR esp_mesh_data_send (uint8_t *p_dst, 
                                            uint8_t *p_data, 
-                                           uint8_t lenth)
+                                           uint32_t lenth)
 {
 	int i;
     uint8_t src[6];
     uint8_t dst_server[6] = {0, 0, 0, 0, 0, 0};
     struct mesh_header_format *header = NULL;
 
-	MESH_DEMO_PRINT("dst addr:" MACSTR " lenth:%d\r\n", MAC2STR((p_dst)), lenth);
+	//MESH_DEMO_PRINT("dst addr:" MACSTR " lenth:%d\r\n", MAC2STR((p_dst)), lenth);
     if (!wifi_get_macaddr(STATION_IF, src)) {
         MESH_DEMO_PRINT("get sta mac fail\n");
         return;
@@ -462,12 +462,12 @@ void ICACHE_FLASH_ATTR esp_mesh_data_send (uint8_t *p_dst,
         return;
     }
 	
-	MESH_DEMO_PRINT("dst addr:" MACSTR "\r\n", MAC2STR((p_dst)));
-	MESH_DEMO_PRINT("head:%d data:%d\r\n", sizeof(struct mesh_header_format), lenth);
-    for (i = 0; i < header->len; i++){
-		MESH_DEMO_PRINT("%02X ", ((u8 *)header)[i]);
-	}
-	MESH_DEMO_PRINT("\r\n");
+	//MESH_DEMO_PRINT("dst addr:" MACSTR "\r\n", MAC2STR((p_dst)));
+	//MESH_DEMO_PRINT("head:%d data:%d\r\n", sizeof(struct mesh_header_format), lenth);
+    //for (i = 0; i < header->len; i++){
+	//	MESH_DEMO_PRINT("%02X ", ((u8 *)header)[i]);
+	//}
+	//MESH_DEMO_PRINT("\r\n");
     if (espconn_mesh_sent(&g_ser_conn, (uint8_t *)header, header->len)) {
         MESH_DEMO_PRINT("ucast mesh is busy\n");
         MESH_DEMO_FREE(header);

@@ -4,7 +4,7 @@
  * 
  * \internal
  * \par Modification history
- * - 1.00 17-06-03  zhangjinke, first implementation.
+ * - 1.00 17-06-03 zhangjinke, first implementation.
  * \endinternal
  */
 #ifndef __USER_CONFIG_H
@@ -52,5 +52,6 @@ extern uint8_t g_mesh_passwd[256 + 1];
 /** \brief MESHÍøÂç×î´óÌøÊı */
 extern uint8_t g_mesh_max_hop;
 
-#endif
+#endif /* __USER_CONFIG_H */
 
+/* end of file */
